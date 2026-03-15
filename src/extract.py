@@ -1,26 +1,37 @@
 """
 KICKZ EMPIRE — Extract (Bronze Layer)
 ======================================
-TP1 — Step 1: Load raw data (CSV) from S3 → Bronze schema in PostgreSQL.
+TP1 — Step 2: Load raw data from S3 → Bronze schema in PostgreSQL.
 
-This module reads CSV files from the S3 data lake (bucket: kickz-empire-data)
+This module reads files from the S3 data lake (bucket: kickz-empire-data)
 and loads them as-is into your group's Bronze schema.
 
+The data lake contains **3 different file formats**:
+    - CSV   : simple tabular files
+    - JSONL : one JSON object per line (newline-delimited JSON)
+    - Parquet (partitioned) : columnar format, split by date (dt=YYYY-MM-DD/)
+
 Datasets handled in this lab:
-    1. raw/catalog/products.csv            → bronze.products
-    2. raw/users/users.csv                 → bronze.users
-    3. raw/orders/orders.csv               → bronze.orders
-    4. raw/order_line_items/order_line_items.csv → bronze.order_line_items
+    CSV:
+        1. raw/catalog/products.csv                         → bronze.products
+        2. raw/users/users.csv                              → bronze.users
+        3. raw/orders/orders.csv                            → bronze.orders
+        4. raw/order_line_items/order_line_items.csv        → bronze.order_line_items
+    JSONL:
+        5. raw/reviews/reviews.jsonl                        → bronze.reviews
+    Parquet (partitioned by day):
+        6. raw/clickstream/dt=YYYY-MM-DD/part-*.snappy.parquet → bronze.clickstream
 
 Bronze principle: data is loaded AS-IS, with zero transformations.
 We even keep the "dirty" columns (_internal_*, _hashed_password, etc.)
 """
 
 import os
-from io import StringIO
+from io import StringIO, BytesIO
 
 import boto3
 import pandas as pd
+import pyarrow.parquet as pq
 from sqlalchemy import text
 
 from src.database import get_engine, BRONZE_SCHEMA
@@ -35,7 +46,7 @@ AWS_REGION = os.getenv("AWS_REGION", "eu-west-3")
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers — S3 client
 # ---------------------------------------------------------------------------
 def _get_s3_client():
     """
@@ -55,6 +66,9 @@ def _get_s3_client():
     )
 
 
+# ---------------------------------------------------------------------------
+# Helpers — Read different formats from S3
+# ---------------------------------------------------------------------------
 def _read_csv_from_s3(s3_key: str) -> pd.DataFrame:
     """
     Read a CSV file from S3 into a pandas DataFrame.
@@ -78,6 +92,77 @@ def _read_csv_from_s3(s3_key: str) -> pd.DataFrame:
     raise NotImplementedError("TODO: Implement _read_csv_from_s3()")
 
 
+def _read_jsonl_from_s3(s3_key: str) -> pd.DataFrame:
+    """
+    Read a JSONL (newline-delimited JSON) file from S3 into a DataFrame.
+
+    JSONL format = one JSON object per line. Each line is a complete record.
+    Example line: {"review_id": "abc", "rating": 5, "body": "Great!"}
+
+    Args:
+        s3_key (str): Full S3 object key (e.g. "raw/reviews/reviews.jsonl")
+
+    Returns:
+        pd.DataFrame: The JSONL contents.
+
+    Hint: use boto3 to get the object, then pd.read_json() with lines=True.
+    Docs:
+        https://pandas.pydata.org/docs/reference/api/pandas.read_json.html
+    """
+    # TODO: Download the JSONL from S3 and return it as a DataFrame
+    # Hint:
+    #   s3 = _get_s3_client()
+    #   response = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
+    #   jsonl_content = response["Body"].read().decode("utf-8")
+    #   return pd.read_json(StringIO(jsonl_content), lines=True)
+    raise NotImplementedError("TODO: Implement _read_jsonl_from_s3()")
+
+
+def _read_partitioned_parquet_from_s3(s3_prefix: str) -> pd.DataFrame:
+    """
+    Read a date-partitioned Parquet dataset from S3 into a DataFrame.
+
+    The clickstream data is stored as partitioned Parquet:
+        raw/clickstream/dt=2026-02-05/part-00001.snappy.parquet
+        raw/clickstream/dt=2026-02-05/part-00002.snappy.parquet
+        raw/clickstream/dt=2026-02-06/part-00001.snappy.parquet
+        ...
+
+    Strategy:
+        1. List all objects under the given S3 prefix
+        2. Filter for .parquet files only
+        3. Download each file and read it with pyarrow
+        4. Concatenate all partitions into a single DataFrame
+
+    Args:
+        s3_prefix (str): S3 prefix for the partitioned dataset
+                         (e.g. "raw/clickstream/")
+
+    Returns:
+        pd.DataFrame: All partitions concatenated.
+
+    Docs:
+        https://arrow.apache.org/docs/python/generated/pyarrow.parquet.read_table.html
+    """
+    # TODO: List all Parquet files under s3_prefix and concatenate them
+    # Hint:
+    #   s3 = _get_s3_client()
+    #   paginator = s3.get_paginator("list_objects_v2")
+    #   dfs = []
+    #   for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=s3_prefix):
+    #       for obj in page.get("Contents", []):
+    #           key = obj["Key"]
+    #           if key.endswith(".parquet"):
+    #               response = s3.get_object(Bucket=S3_BUCKET, Key=key)
+    #               table = pq.read_table(BytesIO(response["Body"].read()))
+    #               dfs.append(table.to_pandas())
+    #   return pd.concat(dfs, ignore_index=True)
+    raise NotImplementedError("TODO: Implement _read_partitioned_parquet_from_s3()")
+
+
+# ---------------------------------------------------------------------------
+# Helper — Load to Bronze
+# ---------------------------------------------------------------------------
 def _load_to_bronze(df: pd.DataFrame, table_name: str, if_exists: str = "replace"):
     """
     Load a DataFrame into a Bronze schema table.
@@ -104,12 +189,13 @@ def _load_to_bronze(df: pd.DataFrame, table_name: str, if_exists: str = "replace
 
 
 # ---------------------------------------------------------------------------
-# Extract functions (one per dataset)
+# Extract functions — CSV datasets
 # ---------------------------------------------------------------------------
 def extract_products() -> pd.DataFrame:
     """
     Extract the product catalog from S3 and load it into bronze.products.
 
+    Format: CSV
     S3 key: raw/catalog/products.csv
 
     Steps:
@@ -133,6 +219,7 @@ def extract_users() -> pd.DataFrame:
     """
     Extract users from S3 and load them into bronze.users.
 
+    Format: CSV
     S3 key: raw/users/users.csv
 
     Returns:
@@ -147,6 +234,7 @@ def extract_orders() -> pd.DataFrame:
     """
     Extract orders from S3 and load them into bronze.orders.
 
+    Format: CSV
     S3 key: raw/orders/orders.csv
 
     Returns:
@@ -161,6 +249,7 @@ def extract_order_line_items() -> pd.DataFrame:
     """
     Extract order line items from S3 and load them into bronze.order_line_items.
 
+    Format: CSV
     S3 key: raw/order_line_items/order_line_items.csv
 
     Returns:
@@ -172,11 +261,79 @@ def extract_order_line_items() -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Extract functions — JSONL datasets
+# ---------------------------------------------------------------------------
+def extract_reviews() -> pd.DataFrame:
+    """
+    Extract customer reviews from S3 and load them into bronze.reviews.
+
+    Format: JSONL (newline-delimited JSON)
+    S3 key: raw/reviews/reviews.jsonl
+
+    Steps:
+        1. Read reviews.jsonl from S3 using _read_jsonl_from_s3()
+        2. Print the number of rows and columns
+        3. Load into bronze.reviews using _load_to_bronze()
+
+    Returns:
+        pd.DataFrame: The reviews data.
+    """
+    # TODO: Implement review extraction
+    # Hint:
+    #   df = _read_jsonl_from_s3(f"{S3_PREFIX}/reviews/reviews.jsonl")
+    #   print(f"  ⭐ Reviews: {len(df)} rows, {len(df.columns)} columns")
+    #   _load_to_bronze(df, "reviews")
+    #   return df
+    raise NotImplementedError("TODO: Implement extract_reviews()")
+
+
+# ---------------------------------------------------------------------------
+# Extract functions — Parquet datasets (partitioned)
+# ---------------------------------------------------------------------------
+def extract_clickstream() -> pd.DataFrame:
+    """
+    Extract clickstream events from S3 and load them into bronze.clickstream.
+
+    Format: Partitioned Parquet (Snappy compressed)
+    S3 prefix: raw/clickstream/
+    Structure:
+        raw/clickstream/dt=2026-02-05/part-00001.snappy.parquet
+        raw/clickstream/dt=2026-02-05/part-00002.snappy.parquet
+        raw/clickstream/dt=2026-02-06/part-00001.snappy.parquet
+        ...
+
+    This is a large dataset (~544k rows, 30 days, 28 columns).
+    The data is partitioned by date (dt=YYYY-MM-DD) and split into
+    multiple part files per day.
+
+    Steps:
+        1. Read all partitions using _read_partitioned_parquet_from_s3()
+        2. Print the number of rows and columns
+        3. Load into bronze.clickstream using _load_to_bronze()
+
+    Returns:
+        pd.DataFrame: The clickstream data.
+    """
+    # TODO: Implement clickstream extraction
+    # Hint:
+    #   df = _read_partitioned_parquet_from_s3(f"{S3_PREFIX}/clickstream/")
+    #   print(f"  🖱️ Clickstream: {len(df)} rows, {len(df.columns)} columns")
+    #   _load_to_bronze(df, "clickstream")
+    #   return df
+    raise NotImplementedError("TODO: Implement extract_clickstream()")
+
+
+# ---------------------------------------------------------------------------
 # Main function
 # ---------------------------------------------------------------------------
 def extract_all() -> dict[str, pd.DataFrame]:
     """
-    Run the full extraction of all CSV sources into Bronze.
+    Run the full extraction of all sources into Bronze.
+
+    Extracts 6 datasets across 3 formats:
+        - 4 CSV files  (products, users, orders, order_line_items)
+        - 1 JSONL file  (reviews)
+        - 1 Partitioned Parquet dataset (clickstream)
 
     Returns:
         dict: A dictionary {table_name: DataFrame} for each extracted table.
@@ -189,10 +346,15 @@ def extract_all() -> dict[str, pd.DataFrame]:
 
     # TODO: Call each extract_*() function and store the result
     # Hint:
+    #   # CSV datasets
     #   results["products"] = extract_products()
     #   results["users"] = extract_users()
     #   results["orders"] = extract_orders()
     #   results["order_line_items"] = extract_order_line_items()
+    #   # JSONL datasets
+    #   results["reviews"] = extract_reviews()
+    #   # Parquet datasets
+    #   results["clickstream"] = extract_clickstream()
 
     raise NotImplementedError("TODO: Implement extract_all()")
 

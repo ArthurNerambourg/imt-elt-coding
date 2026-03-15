@@ -1,15 +1,52 @@
-# TP1 — ELT Pipeline: Bronze → Silver → Gold
+# TP1 — Foundations: Setup & Bronze Layer
+
+## 📖 Business Context
+
+**KICKZ EMPIRE** is a fast-growing e-commerce platform specializing in **sneakers and streetwear** (Nike, Adidas, Jordan, New Balance, Puma…). The store sells sneakers, hoodies, t-shirts, joggers, and accessories to thousands of customers worldwide.
+
+### The problem
+
+The e-commerce team has been collecting data for weeks — orders, product catalogs, user registrations, customer reviews, clickstream events — but it all sits as **raw files in an S3 data lake** in multiple formats (CSV, JSONL, Parquet). No one can easily query it, and the following questions remain unanswered:
+
+> 📊 **Marketing team**: *"How much revenue are we generating day by day? Which products are trending?"*
+>
+> 🛒 **Sales team**: *"Who are our top customers? What's the average order value?"*
+>
+> 📈 **Product team**: *"Which brands and categories perform best? What's our conversion rate?"*
+>
+> 🔒 **Compliance**: *"Are we properly handling PII? Can we audit every data transformation?"*
+
+### The solution: an ELT pipeline
+
+To answer these business questions, you will build an **ELT pipeline** following the **Medallion Architecture** (Bronze → Silver → Gold):
+
+```
+S3 (CSV / JSONL / Parquet)  ──→  🥉 Bronze (raw)  ──→  🥈 Silver (clean)  ──→  🥇 Gold (analytics)
+```
+
+| Layer | Purpose | Example |
+|-------|---------|---------|
+| **🥉 Bronze** | Raw data copied **as-is** from S3 into PostgreSQL. No transformation. | `bronze.products`, `bronze.orders` |
+| **🥈 Silver** | Cleaned & conformed data. PII removed, types fixed, validated. | `silver.dim_products`, `silver.fct_orders` |
+| **🥇 Gold** | Business-ready aggregations for dashboards and reports. | `gold.daily_revenue`, `gold.customer_ltv` |
+
+### In this TP
+
+We focus on the **foundation**: setting up the infrastructure and implementing the **Bronze layer**. By the end of this TP, you will have **6 raw tables** loaded into PostgreSQL from **3 different file formats**, ready to be cleaned in the next TP.
+
+> 📚 For a detailed description of all 12 datasets available in the data lake, see [DATA_PRESENTATION.md](../DATA_PRESENTATION.md).
+
+---
 
 ## 🎯 Objective
 
-Build a complete ELT pipeline that:
-1. **Extracts** raw data (CSV from S3) → loads it into PostgreSQL (**Bronze** layer)
-2. **Transforms** Bronze data → cleans and conforms it (**Silver** layer)
-3. **Aggregates** Silver data → creates analytical tables (**Gold** layer)
+1. Set up your development environment (Python, `.env`, database connection)
+2. Understand the source data (S3 data lake with mixed formats: CSV, JSONL, Parquet)
+3. Implement the **Bronze extraction**: read files from S3 (3 formats) and load them as-is into PostgreSQL
 
-```
-S3 (CSV)  ──→  🥉 Bronze (raw)  ──→  🥈 Silver (clean)  ──→  🥇 Gold (analytics)
-```
+**Files you will work on:**
+- `src/database.py` — Database connection manager
+- `src/extract.py` — Bronze extraction (S3 → PostgreSQL)
 
 ---
 
@@ -27,7 +64,7 @@ S3 (CSV)  ──→  🥉 Bronze (raw)  ──→  🥈 Silver (clean)  ──�
 
 ```bash
 git clone <repo-url>
-cd imt-elt-code
+cd imt-elt-coding
 
 python -m venv venv
 source venv/bin/activate   # macOS/Linux
@@ -97,17 +134,129 @@ Expected output:
 
 ---
 
-## Step 1 — Extract: S3 → Bronze (30 min)
+## Step 1 — Discover the Data (20 min)
+
+Before writing any extraction code, take a few minutes to understand what you're working with.
+
+### 1.1 Explore the S3 data lake
+
+The raw data lives in **`s3://kickz-empire-data/raw/`**. For this TP, we focus on **6 datasets** stored in **3 different formats**:
+
+| Format | S3 Key | Description | Approx. Rows |
+|--------|--------|-------------|--------------|
+| **CSV** | `raw/catalog/products.csv` | Product catalog (sneakers, apparel, accessories) | ~230 |
+| **CSV** | `raw/users/users.csv` | Registered users with profiles | ~5,000 |
+| **CSV** | `raw/orders/orders.csv` | Orders placed on the store | ~17,000 |
+| **CSV** | `raw/order_line_items/order_line_items.csv` | Individual items within each order | ~31,000 |
+| **JSONL** | `raw/reviews/reviews.jsonl` | Customer product reviews | ~2,930 |
+| **Parquet** | `raw/clickstream/dt=YYYY-MM-DD/*.parquet` | Website clickstream events (partitioned by day) | ~544,000 |
+
+> 💡 **Why different formats?** In real data lakes, upstream systems export data in whatever format is most natural for them. CSV is common for transactional systems, JSONL for event logs and APIs, and Parquet for high-volume analytics data. A data engineer must handle them all!
+
+### 1.2 Profile a CSV file
+
+Open a Python REPL or notebook and explore one of the CSV files:
+
+```python
+import boto3, os
+from io import StringIO
+import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+
+s3 = boto3.client("s3",
+    region_name="eu-west-3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+)
+
+# --- CSV: Read products.csv ---
+response = s3.get_object(Bucket="kickz-empire-data", Key="raw/catalog/products.csv")
+df = pd.read_csv(StringIO(response["Body"].read().decode("utf-8")))
+
+print(df.shape)        # rows × columns
+print(df.dtypes)       # column types
+print(df.head())       # first rows
+print(df.describe())   # statistics
+```
+
+### 1.3 Profile a JSONL file
+
+JSONL (JSON Lines) stores **one JSON object per line**. It's a common format for event data and APIs:
+
+```python
+from io import StringIO
+
+# --- JSONL: Read reviews.jsonl ---
+response = s3.get_object(Bucket="kickz-empire-data", Key="raw/reviews/reviews.jsonl")
+jsonl_content = response["Body"].read().decode("utf-8")
+
+# pd.read_json() with lines=True reads one JSON object per line
+df_reviews = pd.read_json(StringIO(jsonl_content), lines=True)
+
+print(df_reviews.shape)
+print(df_reviews.dtypes)
+print(df_reviews.head())
+```
+
+### 1.4 Profile a Partitioned Parquet dataset
+
+Parquet is a **columnar** binary format, often used for large datasets. The clickstream data is **partitioned by date** — each day has its own folder:
+
+```
+raw/clickstream/
+    dt=2026-02-05/part-00001.snappy.parquet
+    dt=2026-02-05/part-00002.snappy.parquet
+    dt=2026-02-06/part-00001.snappy.parquet
+    ...
+```
+
+To read one partition:
+
+```python
+from io import BytesIO
+import pyarrow.parquet as pq
+
+# --- Parquet: Read a single partition file ---
+response = s3.get_object(
+    Bucket="kickz-empire-data",
+    Key="raw/clickstream/dt=2026-02-05/part-00001.snappy.parquet"
+)
+table = pq.read_table(BytesIO(response["Body"].read()))
+df_click = table.to_pandas()
+
+print(df_click.shape)
+print(df_click.dtypes)
+print(df_click.head())
+```
+
+> ⚠️ Don't attempt to read **all** partitions interactively — the full clickstream dataset is ~544k rows. Your extraction code will handle this in Step 2.
+
+### 1.5 Questions to answer (write down your observations)
+
+1. How many columns does `products.csv` have? Which ones start with `_` (internal columns)?
+2. How many columns does `users.csv` have? Can you spot PII (passwords, IPs)?
+3. In `orders.csv`, what are the possible values for `status`?
+4. In `order_line_items.csv`, does `line_total_usd ≈ unit_price_usd × quantity`?
+5. In `reviews.jsonl`, which columns start with `_`? What do `_moderation_score` and `_sentiment_raw` look like?
+6. In the clickstream Parquet file, what does the `event_type` column contain? What `_`-columns exist?
+
+> 💡 This profiling step is what real Data Engineers do before building a pipeline. You need to understand the data **before** transforming it.
+
+---
+
+## Step 2 — Extract: S3 → Bronze (45 min)
 
 📁 **File:** `src/extract.py`
 
 ### Principle
 
-The Bronze layer stores data **as-is**, without any transformation. It is a faithful copy of the source. We keep even the "dirty" columns (`_internal_*`), as they will be cleaned in the next step.
+The Bronze layer stores data **as-is**, without any transformation. It is a faithful copy of the source. We keep even the "dirty" columns (`_internal_*`), as they will be cleaned in TP2.
 
-The raw data lives in the **S3 data lake** (`s3://kickz-empire-data/raw/`). Your code will use **boto3** to read CSV files directly from S3.
+The raw data lives in the **S3 data lake** (`s3://kickz-empire-data/raw/`). Your code will use **boto3** to read files in 3 different formats and load them into PostgreSQL.
 
-### 1.1 Implement `_read_csv_from_s3()`
+### 2.1 Implement `_read_csv_from_s3()`
 
 This function downloads a CSV from S3 and returns it as a DataFrame:
 
@@ -119,7 +268,47 @@ def _read_csv_from_s3(s3_key):
     return pd.read_csv(StringIO(csv_content))
 ```
 
-### 1.2 Implement `_load_to_bronze()`
+### 2.2 Implement `_read_jsonl_from_s3()`
+
+This function downloads a JSONL file (one JSON object per line) and returns it as a DataFrame:
+
+```python
+def _read_jsonl_from_s3(s3_key):
+    s3 = _get_s3_client()
+    response = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
+    jsonl_content = response["Body"].read().decode("utf-8")
+    return pd.read_json(StringIO(jsonl_content), lines=True)
+```
+
+> 💡 **Key difference**: `pd.read_json(..., lines=True)` reads JSONL format — one JSON object per line. Without `lines=True`, pandas would expect a single JSON array.
+
+### 2.3 Implement `_read_partitioned_parquet_from_s3()`
+
+This is the most complex reader. Partitioned Parquet data is split across many files in date-based folders. You need to:
+
+1. **List** all objects under the S3 prefix using a paginator
+2. **Filter** for files ending with `.parquet`
+3. **Download** each file and read it with `pyarrow.parquet.read_table()`
+4. **Concatenate** all partitions into one DataFrame
+
+```python
+def _read_partitioned_parquet_from_s3(s3_prefix):
+    s3 = _get_s3_client()
+    paginator = s3.get_paginator("list_objects_v2")
+    dfs = []
+    for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=s3_prefix):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if key.endswith(".parquet"):
+                response = s3.get_object(Bucket=S3_BUCKET, Key=key)
+                table = pq.read_table(BytesIO(response["Body"].read()))
+                dfs.append(table.to_pandas())
+    return pd.concat(dfs, ignore_index=True)
+```
+
+> 💡 **Why a paginator?** S3 `list_objects_v2` returns max 1,000 objects per call. A paginator automatically handles pagination. With ~60+ Parquet files across 30 days, this is necessary.
+
+### 2.4 Implement `_load_to_bronze()`
 
 This function loads a pandas DataFrame into a PostgreSQL table:
 
@@ -136,9 +325,9 @@ def _load_to_bronze(df, table_name, if_exists="replace"):
     print(f"    ✅ {BRONZE_SCHEMA}.{table_name} — {len(df)} rows loaded")
 ```
 
-### 1.3 Implement the 4 `extract_*()` functions
+### 2.5 Implement the 4 CSV `extract_*()` functions
 
-Each function follows the same pattern:
+Each function follows the same pattern — read from S3 with `_read_csv_from_s3()`, log, and load:
 
 ```python
 def extract_products():
@@ -153,26 +342,63 @@ Do the same for:
 - `extract_orders()` → `"raw/orders/orders.csv"` → `"orders"`
 - `extract_order_line_items()` → `"raw/order_line_items/order_line_items.csv"` → `"order_line_items"`
 
-### 1.4 Implement `extract_all()`
+### 2.6 Implement `extract_reviews()` (JSONL)
 
-Call the 4 functions and store the results:
+This function uses `_read_jsonl_from_s3()` instead of `_read_csv_from_s3()`:
 
 ```python
+def extract_reviews():
+    df = _read_jsonl_from_s3(f"{S3_PREFIX}/reviews/reviews.jsonl")
+    print(f"  ⭐ Reviews: {len(df)} rows, {len(df.columns)} columns")
+    _load_to_bronze(df, "reviews")
+    return df
+```
+
+### 2.7 Implement `extract_clickstream()` (Partitioned Parquet)
+
+This function uses `_read_partitioned_parquet_from_s3()` with a **prefix** instead of a full key:
+
+```python
+def extract_clickstream():
+    df = _read_partitioned_parquet_from_s3(f"{S3_PREFIX}/clickstream/")
+    print(f"  🖱️ Clickstream: {len(df)} rows, {len(df.columns)} columns")
+    _load_to_bronze(df, "clickstream")
+    return df
+```
+
+> ⏱️ **Note**: The clickstream extraction takes a bit longer (~30 seconds) because it downloads ~60 Parquet files and concatenates ~544k rows.
+
+### 2.8 Implement `extract_all()`
+
+Call all 6 functions and store the results:
+
+```python
+# CSV datasets
 results["products"] = extract_products()
 results["users"] = extract_users()
 results["orders"] = extract_orders()
 results["order_line_items"] = extract_order_line_items()
+# JSONL datasets
+results["reviews"] = extract_reviews()
+# Parquet datasets
+results["clickstream"] = extract_clickstream()
 ```
 
-### 1.5 Verify
+### 2.9 Verify
 
 ```bash
-python -m src.extract
+python pipeline.py --step extract
 ```
 
 Expected output:
 ```
+============================================================
+  🏪 KICKZ EMPIRE — ELT Pipeline
+============================================================
+
+============================================================
   🥉 EXTRACT → Bronze (bronze_group0)
+============================================================
 
   📦 Products: 229 rows, 21 columns
     ✅ bronze_group0.products — 229 rows loaded
@@ -182,196 +408,105 @@ Expected output:
     ✅ bronze_group0.orders — 17073 rows loaded
   📋 Line items: 30885 rows, 16 columns
     ✅ bronze_group0.order_line_items — 30885 rows loaded
+  ⭐ Reviews: 2930 rows, 20 columns
+    ✅ bronze_group0.reviews — 2930 rows loaded
+  🖱️ Clickstream: 544041 rows, 28 columns
+    ✅ bronze_group0.clickstream — 544041 rows loaded
 
-  ✅ Extraction complete — 4 tables loaded into bronze_group0
+  ✅ Extraction complete — 6 tables loaded into bronze_group0
 ```
 
-> ✅ **Checkpoint**: Check in PostgreSQL that the 4 tables exist in your bronze schema.
+> ✅ **Checkpoint**: Check in PostgreSQL that the 6 tables exist in your bronze schema.
 
 ---
 
-## Step 2 — Transform: Bronze → Silver (45 min)
+## 📊 Validate Your Bronze Layer
 
-📁 **File:** `src/transform.py`
-
-### Principle
-
-The Silver layer contains **cleaned and conformed** data:
-- ❌ No more internal columns (`_*`)
-- ❌ No more sensitive PII (passwords, IPs)
-- ✅ Correct data types
-- ✅ NULL values handled
-- ✅ Validated data
-
-### 2.1 Implement `_drop_internal_columns()`
-
-```python
-def _drop_internal_columns(df):
-    internal_cols = [col for col in df.columns if col.startswith('_')]
-    df = df.drop(columns=internal_cols)
-    print(f"    🧹 {len(internal_cols)} internal columns removed: {internal_cols}")
-    return df
-```
-
-### 2.2 Implement `transform_products()`
-
-Follow the steps in the code comments:
-1. Remove `_*` columns
-2. Normalize `tags` (replace `|` with `,`)
-3. Validate `price_usd > 0`
-4. Convert booleans
-5. Load into Silver
-
-### 2.3 Implement `transform_users()`
-
-⚠️ **PII Warning**: The Silver layer must NEVER contain passwords, IPs, or fingerprints.
-
-1. Remove `_*` columns (8 columns)
-2. Replace NULL `loyalty_tier` with `"none"`
-3. Normalize emails (lowercase)
-4. Load into Silver
-
-### 2.4 Implement `transform_orders()`
-
-1. Remove `_*` columns (6 columns)
-2. Validate statuses
-3. Convert `order_date` to datetime
-4. Replace NULL `coupon_code` with `""`
-5. Load into Silver
-
-### 2.5 Implement `transform_order_line_items()`
-
-1. Remove `_*` columns (3 columns)
-2. Validate `quantity > 0`
-3. Check `line_total` calculation
-4. Load into Silver
-
-### 2.6 Implement `transform_all()`
-
-### 2.7 Verify
-
-```bash
-python -m src.transform
-```
-
-> ✅ **Checkpoint**: Verify that Silver tables have FEWER columns than Bronze tables (the `_*` columns are gone).
-
----
-
-## Step 3 — Gold Layer: Analytics Aggregations (30 min)
-
-📁 **File:** `src/gold.py`
-
-### Principle
-
-The Gold layer contains **business-ready** tables: aggregated, joined, and optimized for dashboards.
-
-### 3.1 Implement `create_daily_revenue()`
-
-Two possible approaches:
-
-**Option A — SQL (recommended)**:
-```python
-def create_daily_revenue():
-    query = f"""
-        SELECT
-            DATE(o.order_date) AS order_date,
-            COUNT(DISTINCT o.order_id) AS total_orders,
-            SUM(o.total_usd) AS total_revenue,
-            AVG(o.total_usd) AS avg_order_value,
-            SUM(ol.quantity) AS total_items
-        FROM {SILVER_SCHEMA}.fct_orders o
-        LEFT JOIN {SILVER_SCHEMA}.fct_order_lines ol ON o.order_id = ol.order_id
-        WHERE o.status NOT IN ('cancelled', 'chargeback')
-        GROUP BY DATE(o.order_date)
-        ORDER BY order_date
-    """
-    df = pd.read_sql(query, get_engine())
-    _create_gold_table(df, "daily_revenue")
-```
-
-**Option B — Pandas**:
-```python
-def create_daily_revenue():
-    orders = _read_silver("fct_orders")
-    lines = _read_silver("fct_order_lines")
-    # Filter cancellations
-    orders = orders[~orders["status"].isin(["cancelled", "chargeback"])]
-    # Merge and group
-    merged = orders.merge(lines, on="order_id", how="left")
-    daily = merged.groupby(merged["order_date"].dt.date).agg(...)
-    _create_gold_table(daily, "daily_revenue")
-```
-
-### 3.2 Implement `create_product_performance()`
-
-Join `fct_order_lines` ↔ `dim_products`, grouped by product.
-
-### 3.3 Implement `create_customer_ltv()`
-
-Join `fct_orders` ↔ `dim_users`, grouped by customer.
-
-### 3.4 Verify
-
-```bash
-python -m src.gold
-```
-
-> ✅ **Checkpoint**: Verify that the Gold tables exist and contain coherent aggregated data.
-
----
-
-## Step 4 — Run the Full Pipeline 🚀
-
-```bash
-python pipeline.py
-```
-
-Or step by step:
-```bash
-python pipeline.py --step extract
-python pipeline.py --step transform
-python pipeline.py --step gold
-```
-
----
-
-## 📊 Final Checks
-
-Run these SQL queries to validate your pipeline:
+Run these SQL queries in PostgreSQL (via DBeaver, pgAdmin, or `psql`) to validate your work:
 
 ```sql
--- Number of tables per schema
-SELECT schemaname, COUNT(*) as nb_tables
-FROM pg_tables
-WHERE schemaname IN ('bronze_group0', 'silver_group0', 'gold_group0')
-GROUP BY schemaname;
+-- How many tables in your bronze schema?
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'bronze_group0'
+ORDER BY table_name;
 
--- Bronze has more columns than Silver (_ columns removed)
-SELECT COUNT(*) as nb_cols FROM information_schema.columns
-WHERE table_schema = 'bronze_group0' AND table_name = 'products';
--- vs
-SELECT COUNT(*) as nb_cols FROM information_schema.columns
-WHERE table_schema = 'silver_group0' AND table_name = 'dim_products';
+-- Row counts per table
+SELECT 'products' AS table_name, COUNT(*) AS rows FROM bronze_group0.products
+UNION ALL
+SELECT 'users', COUNT(*) FROM bronze_group0.users
+UNION ALL
+SELECT 'orders', COUNT(*) FROM bronze_group0.orders
+UNION ALL
+SELECT 'order_line_items', COUNT(*) FROM bronze_group0.order_line_items
+UNION ALL
+SELECT 'reviews', COUNT(*) FROM bronze_group0.reviews
+UNION ALL
+SELECT 'clickstream', COUNT(*) FROM bronze_group0.clickstream;
 
--- Top 5 products by revenue (Gold)
-SELECT product_name, brand, total_revenue
-FROM gold_group0.product_performance
-ORDER BY total_revenue DESC
-LIMIT 5;
+-- Inspect the columns of the products table — notice the _ prefixed columns
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = 'bronze_group0' AND table_name = 'products'
+ORDER BY ordinal_position;
 
--- Daily revenue
-SELECT * FROM gold_group0.daily_revenue ORDER BY order_date;
+-- Quick peek at order statuses
+SELECT status, COUNT(*) AS cnt
+FROM bronze_group0.orders
+GROUP BY status
+ORDER BY cnt DESC;
+
+-- Check reviews — what ratings exist?
+SELECT rating, COUNT(*) AS cnt
+FROM bronze_group0.reviews
+GROUP BY rating
+ORDER BY rating;
+
+-- Check clickstream — what event types exist?
+SELECT event_type, COUNT(*) AS cnt
+FROM bronze_group0.clickstream
+GROUP BY event_type
+ORDER BY cnt DESC;
 ```
+
+**Expected results:**
+- 6 tables in your bronze schema
+- ~229 products, ~5,001 users, ~17,073 orders, ~30,885 line items, ~2,930 reviews, ~544,041 clickstream events
+- Products table has ~21 columns (including `_internal_cost_usd`, `_supplier_id`, etc.)
+- Order statuses: `delivered`, `shipped`, `processing`, `returned`, `cancelled`, `chargeback`
+- Review ratings: 1–5 (integer)
+- Clickstream event types: `page_view`, `product_view`, `add_to_cart`, `checkout`, etc.
+
+> ✅ **Final Checkpoint**: If you see 6 populated tables in your bronze schema, you're done with TP1!
 
 ---
 
 ## 🎁 Bonus (if you finish early)
 
-1. **Add a 5th table**: Integrate `payment_transactions.csv` into the pipeline (Bronze → Silver → Gold)
-2. **UPSERT method**: Modify `_load_to_bronze()` to use a MERGE/UPSERT instead of `replace` (idempotent)
-3. **Logging**: Add a `print()` with timestamp at each step to trace execution
-4. **Data schema**: Draw the ER diagram of your Silver layer (draw.io or Mermaid)
+The data lake contains **6 more datasets** that are not covered in this TP. Try extracting them as extra credit!
+
+| Format | S3 Key | Target Table |
+|--------|--------|-------------|
+| CSV | `raw/payments/payment_transactions.csv` | `bronze.payments` |
+| CSV | `raw/inventory/inventory_movements.csv` | `bronze.inventory` |
+| JSONL | `raw/marketing/marketing_events.jsonl` | `bronze.marketing` |
+| JSONL | `raw/search_events/search_events.jsonl` | `bronze.search_events` |
+| JSONL | `raw/abandoned_carts/abandoned_carts.jsonl` | `bronze.abandoned_carts` |
+| Parquet | `raw/interactions/` | `bronze.interactions` |
+
+Other bonus ideas:
+1. **Data quality report**: Write a short report (notebook or markdown) listing issues you spotted during profiling (NULL values, suspicious columns, data types to fix…). This will be useful for TP2 (Silver layer).
+2. **UPSERT method**: Modify `_load_to_bronze()` to use a MERGE/UPSERT instead of `replace` (idempotent loads).
+3. **ER diagram**: Draw the relationships between the 6 Bronze tables (draw.io or Mermaid).
+
+---
+
+## 🔜 Next: TP2 — Silver & Gold Layers
+
+In the next TP, you will:
+- **Clean** the Bronze data → Silver (remove `_*` columns, handle PII, validate data)
+- **Aggregate** Silver data → Gold (daily revenue, product performance, customer LTV)
+- **Answer** the business questions the e-commerce team has been waiting for!
 
 ---
 
@@ -379,5 +514,9 @@ SELECT * FROM gold_group0.daily_revenue ORDER BY order_date;
 
 - [SQLAlchemy 2.0 Documentation](https://docs.sqlalchemy.org/en/20/)
 - [pandas.DataFrame.to_sql()](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html)
-- [pandas.read_sql()](https://pandas.pydata.org/docs/reference/api/pandas.read_sql.html)
+- [pandas.read_json() — JSONL support](https://pandas.pydata.org/docs/reference/api/pandas.read_json.html)
+- [boto3 S3 get_object()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object.html)
+- [boto3 S3 Paginator (list_objects_v2)](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectsV2.html)
+- [PyArrow — Reading Parquet files](https://arrow.apache.org/docs/python/generated/pyarrow.parquet.read_table.html)
+- [Apache Parquet format](https://parquet.apache.org/documentation/latest/)
 - [Medallion Architecture (Bronze/Silver/Gold)](https://www.databricks.com/glossary/medallion-architecture)

@@ -161,6 +161,32 @@ erDiagram
 
 ---
 
+## File Formats Overview
+
+The data lake uses **3 different file formats**. In TP1, you will work with the 6 datasets marked ✅:
+
+| # | Dataset | Format | S3 Path | TP1 |
+|---|---------|--------|---------|:---:|
+| 1 | Products | CSV | `raw/catalog/products.csv` | ✅ |
+| 2 | Users | CSV | `raw/users/users.csv` | ✅ |
+| 3 | Orders | CSV | `raw/orders/orders.csv` | ✅ |
+| 4 | Order Line Items | CSV | `raw/order_line_items/order_line_items.csv` | ✅ |
+| 5 | Payments | CSV | `raw/payments/payment_transactions.csv` | bonus |
+| 6 | Inventory | CSV | `raw/inventory/inventory_movements.csv` | bonus |
+| 7 | Reviews | **JSONL** | `raw/reviews/reviews.jsonl` | ✅ |
+| 8 | Marketing Events | JSONL | `raw/marketing/marketing_events.jsonl` | bonus |
+| 9 | Search Events | JSONL | `raw/search_events/search_events.jsonl` | bonus |
+| 10 | Abandoned Carts | JSONL | `raw/abandoned_carts/abandoned_carts.jsonl` | bonus |
+| 11 | Clickstream | **Parquet** (partitioned) | `raw/clickstream/dt=YYYY-MM-DD/*.parquet` | ✅ |
+| 12 | Interactions | Parquet | `raw/interactions/` | bonus |
+
+**Format details:**
+- **CSV** — Comma-separated values, UTF-8. Readable with `pd.read_csv()`.
+- **JSONL** (JSON Lines) — One JSON object per line. Readable with `pd.read_json(..., lines=True)`.
+- **Parquet** — Columnar binary format (Snappy-compressed). Clickstream is date-partitioned (`dt=YYYY-MM-DD/`). Readable with `pyarrow.parquet.read_table()`.
+
+---
+
 ## The 12 Datasets in Detail
 
 ### 1. 📦 Product Catalog (`products.csv`)
