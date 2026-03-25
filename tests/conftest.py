@@ -39,31 +39,28 @@ def sample_products():
 @pytest.fixture
 def sample_users():
     """Fake users DataFrame mimicking Bronze data."""
-    # TODO: Create a DataFrame with these columns:
-    #   - user_id: [1, 2]
-    #   - email: include one with spaces and uppercase to test normalization
-    #            e.g. [" Alice@Example.COM ", "bob@test.com"]
-    #   - first_name, last_name: any values
-    #   - loyalty_tier: include one None to test fillna
-    #   - _hashed_password, _last_ip, _device_fingerprint: internal columns (should be removed)
-    #
-    # Hint: follow the same pattern as sample_products above
-
-    pass  # ← Replace with pd.DataFrame({...})
+    return pd.DataFrame({
+        "user_id": [1, 2],
+        "email": [" Alice@Example.COM ", "bob@test.com"],
+        "first_name": ["Alice", "Bob"],
+        "last_name": ["Martin", "Smith"],
+        "loyalty_tier": ["gold", None],
+        "_hashed_password": ["abc123", "def456"],
+        "_last_ip": ["1.2.3.4", "5.6.7.8"],
+        "_device_fingerprint": ["fp1", "fp2"],
+    })
 
 
 @pytest.fixture
 def sample_orders():
     """Fake orders DataFrame mimicking Bronze data."""
-    # TODO: Create a DataFrame with these columns:
-    #   - order_id: [1, 2, 3]
-    #   - user_id: [1, 2, 1]
-    #   - order_date: string dates like ["2026-02-10", "2026-02-11", "2026-02-12"]
-    #   - status: include one invalid status like "invalid_status" to test filtering
-    #   - total_usd: any positive values
-    #   - coupon_code: include one None to test fillna
-    #   - _stripe_charge_id, _fraud_score: internal columns (should be removed)
-    #
-    # Hint: follow the same pattern as sample_products above
-
-    pass  # ← Replace with pd.DataFrame({...})
+    return pd.DataFrame({
+        "order_id": [1, 2, 3],
+        "user_id": [1, 2, 1],
+        "order_date": ["2026-02-10", "2026-02-11", "2026-02-12"],
+        "status": ["delivered", "shipped", "invalid_status"],
+        "total_usd": [149.99, 179.99, 50.0],
+        "coupon_code": ["SAVE10", None, None],
+        "_stripe_charge_id": ["ch_1", "ch_2", "ch_3"],
+        "_fraud_score": [0.1, 0.2, 0.9],
+    })
