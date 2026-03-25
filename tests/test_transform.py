@@ -122,21 +122,29 @@ class TestTransformUsers:
     def test_removes_pii_columns(self, mock_read, mock_load, sample_users):
         # TODO: Test that internal columns (_hashed_password, _last_ip, _device_fingerprint)
         # are removed from the result
-        pass
-
+        mock_read.return_value() = sample_users
+        result = transform_users()
+        internal_columns = [col for col in result.columns if col.startswith('_')]
+        assert len(internal_columns) == 0
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_fills_null_loyalty_tier(self, mock_read, mock_load, sample_users):
         # TODO: Test that NULL loyalty_tier values are replaced with "none"
         # Hint: result["loyalty_tier"].notna().all()
-        pass
+        mock_read.return_value() = sample_users
+        result = transform_users()
+        assert result["loyalty_tier"].notna().all()
+        
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_normalizes_emails(self, mock_read, mock_load, sample_users):
         # TODO: Test that emails are lowercased and stripped of whitespace
         # " Alice@Example.COM " should become "alice@example.com"
-        pass
+        mock_read.return_value() = sample_users
+        result = transform_users()
+        assert not result["email"].str.contains(" ").any()
+        assert result["email"].str.islower().all()
 
 
 class TestTransformOrders:
