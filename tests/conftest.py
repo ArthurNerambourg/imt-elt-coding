@@ -76,7 +76,7 @@ def sample_order_line_items():
         "colorway": ["Bred", "Triple White", "Chicago", "Black"],
         "quantity": [1, 2, 1, 0],
         "unit_price_usd": [149.99, 100.00, 179.99, 50.00],
-        "line_total_usd": [149.99, 200.00, 179.99, 0.00],
+        "line_total_usd": [1000, 200.00, 179.99, 0.00],
         "_warehouse_id": ["WH-01", "WH-02", "WH-01", "WH-03"],
         "_internal_batch_code": ["BATCH-A", "BATCH-B", "BATCH-A", None],
         "_pick_slot": ["A12", "B04", "A15", "C01"]

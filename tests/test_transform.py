@@ -284,7 +284,6 @@ class TestTransformOrderLineItems:
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_verif_multiplication(self, mock_read, mock_load, sample_order_line_items):
-        sample_order_line_items.loc[0, "line_total_usd"] = 1000 
         mock_read.return_value = sample_order_line_items
 
         result = transform_order_line_items()
