@@ -57,7 +57,7 @@ class TestExtractUsers:
     def test_extracts_and_loads(self, mock_read_csv, mock_load, sample_users):
         # TODO: Same pattern as TestExtractProducts
         mock_read_csv.return_value = sample_users
-        result = extract_products()
+        result = extract_users()
         rows, columns = result.shape
         assert rows == 2
         mock_load.assert_called_once()
@@ -71,7 +71,7 @@ class TestExtractOrders:
     def test_extracts_and_loads(self, mock_read_csv, mock_load, sample_orders):
         # TODO: Same pattern as TestExtractProducts
         mock_read_csv.return_value = sample_orders
-        result = extract_products()
+        result = extract_orders()
         rows, columns = result.shape
         assert rows == 3
         mock_load.assert_called_once()
