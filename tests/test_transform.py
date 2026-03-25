@@ -145,24 +145,32 @@ class TestTransformOrders:
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_removes_invalid_statuses(self, mock_read, mock_load, sample_orders):
+
         # TODO: Test that rows with invalid statuses are removed
         # "invalid_status" is not in the valid set → should be filtered out
-        pass
+        mock_read.return_value = sample_orders
+        result = transform_orders()
+        VALID_STATUSES = {"delivered", "shipped", "processing", "returned", "cancelled", "chargeback"}
+        invalid = result[~result["status"].isin(VALID_STATUSES)]
+        assert len(invalid) == 0 
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_converts_order_date(self, mock_read, mock_load, sample_orders):
         # TODO: Test that order_date is converted to datetime type
         # Hint: "datetime" in str(result["order_date"].dtype)
-        pass
+        mock_read.return_value = sample_orders
+        result = transform_orders()
+        assert "datetime" in str(result["order_date"].dtype)
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_replaces_null_coupon_code(self, mock_read, mock_load, sample_orders):
         # TODO: Test that NULL coupon_code values are replaced with ""
         # Hint: result["coupon_code"].notna().all()
-        pass
-
+        mock_read.return_value = sample_orders
+        result = transform_orders()
+        assert result["coupon_code"].notna().all()
 
 # =============================================================================
 # TODO (Step 3.3): Complete the error handling tests below
