@@ -201,19 +201,23 @@ class TestTransformErrorHandling:
         # Hint: use pytest.raises(Exception, match="DB connection failed")
         #   with pytest.raises(Exception, match="DB connection failed"):
         #       transform_products()
-        pass
+        with pytest.raises(Exception, match = "DB connection failed"):
+            transform_products()
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze", side_effect=Exception("DB connection failed"))
     def test_transform_users_propagates_error(self, mock_read, mock_load):
         # TODO: Same pattern for transform_users()
-        pass
+        with pytest.raises(Exception, match="DB connection failed"):
+            transform_users()
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze", side_effect=Exception("DB connection failed"))
     def test_transform_orders_propagates_error(self, mock_read, mock_load):
-        # TODO: Same pattern for transform_orders()
-        pass
+        # TODO: 
+        with pytest.raises(Exception, match="DB connection failed"):
+            transform_orders()
+        
 
 
 class TestTransformProducts:
