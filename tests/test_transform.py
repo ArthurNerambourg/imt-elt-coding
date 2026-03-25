@@ -86,7 +86,12 @@ class TestTransformProducts:
         #   2. result = transform_products()              (call the real function)
         #   3. Assert that result has only 2 rows (the one with price -10 is gone)
         #   4. Assert that all remaining prices are > 0
-        pass
+        mock_read.return_value = sample_products
+        result = transform_products()
+        rows, columns = result.shape
+        assert rows == 2
+        assert (result["price_usd"] > 0).all()
+
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
@@ -94,14 +99,19 @@ class TestTransformProducts:
         # TODO: Test that '|' in tags is replaced with ', '
         # After transform, "running|casual" should become "running, casual"
         # Hint: assert not result["tags"].str.contains("|", regex=False).any()
-        pass
+        mock_read.return_value = sample_products
+        result = transform_products()
+        assert not result["tags"].str.contains("|", regex=False).any()
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
     def test_converts_booleans(self, mock_read, mock_load, sample_products):
         # TODO: Test that is_active and is_hype_product are converted to bool
         # Hint: result["is_active"].dtype == bool
-        pass
+        mock_read.return_value = sample_products
+        result = transform_products()
+        assert result["is_active"].dtype == bool
+        assert result["is_hype_product"].dtype == bool
 
 
 class TestTransformUsers:
