@@ -81,3 +81,44 @@ def sample_order_line_items():
         "_internal_batch_code": ["BATCH-A", "BATCH-B", "BATCH-A", None],
         "_pick_slot": ["A12", "B04", "A15", "C01"]
     })
+
+@pytest.fixture
+def sample_daily_revenue():
+    return pd.DataFrame({
+        "order_date": ["2026-02-10", "2026-02-11"],
+        "total_orders": [2, 1],
+        "total_revenue": [329.98, 149.99],
+        "avg_order_value": [164.99, 149.99],
+        "total_items": [3, 1],
+    })
+
+
+@pytest.fixture
+def sample_product_performance():
+    return pd.DataFrame({
+        "product_id": [1, 2],
+        "product_name": ["Nike Air Max", "Adidas Ultraboost"],
+        "brand": ["Nike", "Adidas"],
+        "category": ["sneakers", "sneakers"],
+        "total_quantity_sold": [5, 3],
+        "total_revenue": [749.95, 539.97],
+        "num_orders": [4, 2],
+        "avg_unit_price": [149.99, 179.99],
+    })
+
+
+@pytest.fixture
+def sample_customer_ltv():
+    return pd.DataFrame({
+        "user_id": [1, 2],
+        "email": ["alice@example.com", "bob@test.com"],
+        "first_name": ["Alice", "Bob"],
+        "last_name": ["Martin", "Smith"],
+        "loyalty_tier": ["gold", "none"],
+        "total_orders": [3, 1],
+        "total_spent": [479.97, 179.99],
+        "avg_order_value": [159.99, 179.99],
+        "first_order_date": ["2026-02-10", "2026-02-11"],
+        "last_order_date": ["2026-02-20", "2026-02-11"],
+        "days_as_customer": [10, 0],
+    })
