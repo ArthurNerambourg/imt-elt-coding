@@ -8,17 +8,17 @@ from src.database import (
     test_connection,
     execute_sql
     )
-@
-Class TestDatabase : 
 
-def test_get_engine():
-        result = get_engine()
-        assert
+# class TestDatabase : 
 
-def test_test_connection():
-        result = test_connection()
-        assert
+# def test_get_engine():
+#         result = get_engine()
+#         assert true
 
-def test_execute_sql() : 
-        result=test_execute_sql()
-        assert 
+# def test_test_connection():
+#         result = test_connection()
+#         assert
+
+# def test_execute_sql() : 
+#         result=test_execute_sql()
+#         assert 
