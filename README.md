@@ -1,5 +1,6 @@
 # 🏪 KICKZ EMPIRE — ELT Pipeline
 
+<<<<<<< HEAD
 ## 📖 Project Description
 The data used in this project comes from **KICKZ EMPIRE**, an e-commerce website specializing in sneakers and streetwear apparel. 
 
@@ -11,6 +12,13 @@ As Data Engineers/Data Scientists, our goal is to provide the e-commerce analyti
 To achieve this, we have designed and implemented a robust **ELT (Extract, Load, Transform)** pipeline.
 
 ---
+=======
+ELT (Extract, Load, Transform) pipeline for the **KICKZ EMPIRE** e-commerce website, built as part of the IMT Data Engineering course. Our goal as data scientists is to provide the e-commerce team with clear, clean data to answer the following questions: 
+
+What is our daily revenue?
+Which products sell best?
+Who are our best customers?
+>>>>>>> 516139082a0985548ac95de99fd4126ea5858f0c
 
 ## 🏗️ Architecture
 
@@ -139,7 +147,34 @@ pytest tests/test_transform.py
 
 ---
 
+<<<<<<< HEAD
 ## 👥 Team Members
+=======
+- [Data Presentation](docs/DATA_PRESENTATION.md)
+- [TP1 Instructions](docs/tp1/INSTRUCTIONS.md)
+
+## ⚙️ Tech Stack
+
+- **Python 3.10+** : Main language
+- **pandas** : Data manipulation
+- **boto3** : AWS S3 access
+- **SQLAlchemy** : ORM / PostgreSQL connection
+- **PostgreSQL** (AWS RDS) : Database
+- **pytest** : Testing (TP2)
+
+
+Instructions d'installation (étape par étape)
+Comment exécuter (pipeline complet + étapes individuelles)
+
+Test de l'ELT : 
+Pour tester le fonctionnement de l'ELT 
+
+
+## Team members 
+LACHGER Soufiane
+MARTIN Sacha 
+NERAMBOURG Arthur
+>>>>>>> 516139082a0985548ac95de99fd4126ea5858f0c
 
 * **LACHGER Soufiane** - Data Engineer
 * **MARTIN Sacha** - Data Engineer
