@@ -69,9 +69,15 @@ def sample_orders():
 def sample_order_line_items():
     """Fake order_line_items DataFrame mimicking Bronze data."""
     return pd.DataFrame({
-        "line_item_id": [1, 2, 3, 4],
+        "line_item_id": [101, 102, 103, 104],
         "order_id": [1, 1, 2, 3],
-        "product_id": [1, 2, 2, 3],
-        "quantity": [1, 2, 1, 1],
-        "unit_price_usd": [149.99, 179.99, 179.99, 10.00],
+        "product_id": [501, 502, 501, 503],
+        "selected_size": ["US 9", "US 10.5", "US 8", "L"],
+        "colorway": ["Bred", "Triple White", "Chicago", "Black"],
+        "quantity": [1, 2, 1, 0],
+        "unit_price_usd": [149.99, 100.00, 179.99, 50.00],
+        "line_total_usd": [149.99, 200.00, 179.99, 0.00],
+        "_warehouse_id": ["WH-01", "WH-02", "WH-01", "WH-03"],
+        "_internal_batch_code": ["BATCH-A", "BATCH-B", "BATCH-A", None],
+        "_pick_slot": ["A12", "B04", "A15", "C01"]
     })
