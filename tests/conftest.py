@@ -64,3 +64,14 @@ def sample_orders():
         "_stripe_charge_id": ["ch_1", "ch_2", "ch_3"],
         "_fraud_score": [0.1, 0.2, 0.9],
     })
+    
+@pytest.fixture
+def sample_order_line_items():
+    """Fake order_line_items DataFrame mimicking Bronze data."""
+    return pd.DataFrame({
+        "line_item_id": [1, 2, 3, 4],
+        "order_id": [1, 1, 2, 3],
+        "product_id": [1, 2, 2, 3],
+        "quantity": [1, 2, 1, 1],
+        "unit_price_usd": [149.99, 179.99, 179.99, 10.00],
+    })
