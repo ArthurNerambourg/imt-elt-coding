@@ -1,0 +1,23 @@
+{
+  "pipeline_name": "KICKZ EMPIRE ELT",
+  "run_id": "2026-03-25T15:15:03.467930+00:00",
+  "steps": [
+    {
+      "step_name": "extract",
+      "status": "success",
+      "start_time": "2026-03-25T15:15:03.467953+00:00",
+      "end_time": "2026-03-25T15:22:27.965824+00:00",
+      "duration_seconds": 444.5,
+      "rows_processed": 600155,
+      "tables_created": [
+        "products",
+        "users",
+        "orders",
+        "order_line_items",
+        "reviews",
+        "clickstream"
+      ],
+      "errors": []
+    }
+  ]
+}
