@@ -76,7 +76,7 @@ def create_daily_revenue():
 
     except Exception as e:
         logger.error(f"Failed to transform create_daily_revenue: {e}")
-        raise e
+        raise
 
 def create_product_performance():
     """Create gold.product_performance — metrics per product."""
@@ -110,7 +110,7 @@ def create_product_performance():
 
     except Exception as e:
         logger.error(f"Failed to transform create_product_performance: {e}")
-        raise e
+        raise
 
 
 def create_customer_ltv():
@@ -148,7 +148,7 @@ def create_customer_ltv():
 
     except Exception as e:
         logger.error(f"Failed to transform create_customer_ltv: {e}")
-        raise e
+        raise
 
 
 def create_gold_layer():

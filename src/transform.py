@@ -94,7 +94,7 @@ def transform_products() -> pd.DataFrame:
 
     except Exception as e:
         logger.error(f"Failed to transform products: {e}")
-        raise e
+        raise
 
 
 def transform_users() -> pd.DataFrame:
@@ -124,7 +124,7 @@ def transform_users() -> pd.DataFrame:
 
     except Exception as e:
         logger.error(f"Failed to transform users: {e}")
-        raise e
+        raise
 
 
 def transform_orders() -> pd.DataFrame:
@@ -166,7 +166,7 @@ def transform_orders() -> pd.DataFrame:
 
     except Exception as e:
         logger.error(f"Failed to transform orders: {e}")
-        raise e
+        raise
 
 def transform_order_line_items() -> pd.DataFrame:
     """Transform bronze.order_line_items → silver.fct_order_lines."""
@@ -205,7 +205,7 @@ def transform_order_line_items() -> pd.DataFrame:
 
     except Exception as e:
         logger.error(f"Failed to transform order_line_items: {e}")
-        raise e
+        raise
 
 
 def transform_all() -> dict[str, pd.DataFrame]:
