@@ -255,7 +255,7 @@ class TestTransformProducts:
         # TODO: Test that is_active and is_hype_product are converted to bool
         # Hint: result["is_active"].dtype == bool
         mock_read.return_value = sample_products
-        result = transform_ord()
+        result = transform_products()
         assert result["is_active"].dtype == bool
         assert result["is_hype_product"].dtype == bool
 
