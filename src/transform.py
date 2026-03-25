@@ -29,7 +29,7 @@ def _drop_internal_columns(df: pd.DataFrame) -> pd.DataFrame:
     #        3. Print how many were removed, then return
     internal_cols = [col for col in df.columns if col.startswith("_")]
     df = df.drop(columns=internal_cols)
-    print(f"    🧹 {len(internal_cols)} internal columns removed: {internal_cols}")
+    logger.info(f"    🧹 {len(internal_cols)} internal columns removed: {internal_cols}")
     return df
 
 
@@ -43,7 +43,7 @@ def _load_to_silver(df: pd.DataFrame, table_name: str, if_exists: str = "replace
         if_exists=if_exists,
         index=False,
     )
-    print(f"    ✅ {SILVER_SCHEMA}.{table_name} — {len(df)} rows loaded")
+    logger.info(f"    ✅ {SILVER_SCHEMA}.{table_name} — {len(df)} rows loaded")
 
 
 def transform_products() -> pd.DataFrame:
@@ -210,9 +210,9 @@ def transform_order_line_items() -> pd.DataFrame:
 
 def transform_all() -> dict[str, pd.DataFrame]:
     """Run the complete transformation from Bronze → Silver."""
-    print(f"\n{'='*60}")
-    print(f"  🥈 TRANSFORM → Silver ({SILVER_SCHEMA})")
-    print(f"{'='*60}\n")
+    logger.info(f"\n{'='*60}")
+    logger.info(f"  🥈 TRANSFORM → Silver ({SILVER_SCHEMA})")
+    logger.info(f"{'='*60}\n")
 
     results = {}
 
@@ -224,7 +224,7 @@ def transform_all() -> dict[str, pd.DataFrame]:
     results["fct_orders"] = transform_orders()
     results["fct_order_lines"] = transform_order_line_items()
 
-    print(f"\n  ✅ Transformation complete — {len(results)} tables in {SILVER_SCHEMA}")
+    logger.info(f"\n  ✅ Transformation complete — {len(results)} tables in {SILVER_SCHEMA}")
     return results
 
 

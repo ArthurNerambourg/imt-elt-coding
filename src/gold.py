@@ -11,6 +11,8 @@ from src.database import get_engine, SILVER_SCHEMA, GOLD_SCHEMA
 #   1. from src.logger import get_logger
 #   2. logger = get_logger(__name__)
 
+from src.logger import get_logger
+logger = get_logger(__name__)
 
 def _read_silver(table_name: str) -> pd.DataFrame:
     """Read a table from the Silver schema."""
@@ -30,7 +32,7 @@ def _create_gold_table(df: pd.DataFrame, table_name: str, if_exists: str = "repl
         index=False,
     )
     # TODO (TP3): Replace with logger.info(...)
-    print(f"    ✅ {GOLD_SCHEMA}.{table_name} — {len(df)} rows")
+    logger.info(f"    ✅ {GOLD_SCHEMA}.{table_name} — {len(df)} rows")
 
 
 def _create_gold_view(view_name: str, sql: str):
@@ -42,100 +44,111 @@ def _create_gold_view(view_name: str, sql: str):
         conn.execute(text(f"CREATE VIEW {full_name} AS {sql}"))
         conn.commit()
     # TODO (TP3): Replace with logger.info(...)
-    print(f"    ✅ View {full_name} created")
+    logger.info(f"    ✅ View {full_name} created")
 
 
 def create_daily_revenue():
     """Create gold.daily_revenue — daily revenue."""
     # TODO (TP3): Replace print with logger.info, add try/except + logger.error + raise
-    print("  📊 Gold: daily_revenue")
+    logger.info("  📊 Gold: daily_revenue")
+    try :
+        # TODO: Create daily_revenue using SQL
+        # Write a SQL query that joins fct_orders + fct_order_lines,
+        # groups by date, and computes the aggregates described in the docstring.
+        # Exclude cancelled/chargeback orders.
+        # Then: pd.read_sql() → _create_gold_table()
 
-    # TODO: Create daily_revenue using SQL
-    # Write a SQL query that joins fct_orders + fct_order_lines,
-    # groups by date, and computes the aggregates described in the docstring.
-    # Exclude cancelled/chargeback orders.
-    # Then: pd.read_sql() → _create_gold_table()
+        query = f"""
+            SELECT
+                DATE(o.order_date) AS order_date,
+                COUNT(DISTINCT o.order_id) AS total_orders,
+                ROUND(CAST(SUM(o.total_usd) AS numeric), 2) AS total_revenue,
+                ROUND(CAST(AVG(o.total_usd) AS numeric), 2) AS avg_order_value,
+                COALESCE(SUM(ol.quantity), 0) AS total_items
+            FROM {SILVER_SCHEMA}.fct_orders o
+            LEFT JOIN {SILVER_SCHEMA}.fct_order_lines ol ON o.order_id = ol.order_id
+            WHERE o.status NOT IN ('cancelled', 'chargeback')
+            GROUP BY DATE(o.order_date)
+            ORDER BY order_date
+        """
+        df = pd.read_sql(query, get_engine())
+        _create_gold_table(df, "daily_revenue")
 
-    query = f"""
-        SELECT
-            DATE(o.order_date) AS order_date,
-            COUNT(DISTINCT o.order_id) AS total_orders,
-            ROUND(CAST(SUM(o.total_usd) AS numeric), 2) AS total_revenue,
-            ROUND(CAST(AVG(o.total_usd) AS numeric), 2) AS avg_order_value,
-            COALESCE(SUM(ol.quantity), 0) AS total_items
-        FROM {SILVER_SCHEMA}.fct_orders o
-        LEFT JOIN {SILVER_SCHEMA}.fct_order_lines ol ON o.order_id = ol.order_id
-        WHERE o.status NOT IN ('cancelled', 'chargeback')
-        GROUP BY DATE(o.order_date)
-        ORDER BY order_date
-    """
-    df = pd.read_sql(query, get_engine())
-    _create_gold_table(df, "daily_revenue")
-
+    except Exception as e:
+        logger.error(f"Failed to transform create_daily_revenue: {e}")
+        raise e
 
 def create_product_performance():
     """Create gold.product_performance — metrics per product."""
     # TODO (TP3): Replace print with logger.info, add try/except + logger.error + raise
-    print("  🏆 Gold: product_performance")
+    logger.info("  🏆 Gold: product_performance")
 
     # TODO: Create the product_performance table
     # Join fct_order_lines with dim_products (and filter via fct_orders)
     # Group by product_id + product details, aggregate sales metrics
     # See the expected columns in the docstring above
+    try :
+        query = f"""
+            SELECT
+                ol.product_id,
+                p.display_name AS product_name,
+                p.brand,
+                p.category,
+                SUM(ol.quantity) AS total_quantity_sold,
+                ROUND(CAST(SUM(ol.line_total_usd) AS numeric), 2) AS total_revenue,
+                COUNT(DISTINCT ol.order_id) AS num_orders,
+                ROUND(CAST(AVG(ol.unit_price_usd) AS numeric), 2) AS avg_unit_price
+            FROM {SILVER_SCHEMA}.fct_order_lines ol
+            INNER JOIN {SILVER_SCHEMA}.dim_products p ON ol.product_id = p.product_id
+            INNER JOIN {SILVER_SCHEMA}.fct_orders o ON ol.order_id = o.order_id
+            WHERE o.status NOT IN ('cancelled', 'chargeback')
+            GROUP BY ol.product_id, p.display_name, p.brand, p.category
+            ORDER BY total_revenue DESC
+        """
+        df = pd.read_sql(query, get_engine())
+        _create_gold_table(df, "product_performance")
 
-    query = f"""
-        SELECT
-            ol.product_id,
-            p.display_name AS product_name,
-            p.brand,
-            p.category,
-            SUM(ol.quantity) AS total_quantity_sold,
-            ROUND(CAST(SUM(ol.line_total_usd) AS numeric), 2) AS total_revenue,
-            COUNT(DISTINCT ol.order_id) AS num_orders,
-            ROUND(CAST(AVG(ol.unit_price_usd) AS numeric), 2) AS avg_unit_price
-        FROM {SILVER_SCHEMA}.fct_order_lines ol
-        INNER JOIN {SILVER_SCHEMA}.dim_products p ON ol.product_id = p.product_id
-        INNER JOIN {SILVER_SCHEMA}.fct_orders o ON ol.order_id = o.order_id
-        WHERE o.status NOT IN ('cancelled', 'chargeback')
-        GROUP BY ol.product_id, p.display_name, p.brand, p.category
-        ORDER BY total_revenue DESC
-    """
-    df = pd.read_sql(query, get_engine())
-    _create_gold_table(df, "product_performance")
+    except Exception as e:
+        logger.error(f"Failed to transform create_product_performance: {e}")
+        raise e
 
 
 def create_customer_ltv():
     """Create gold.customer_ltv — Lifetime Value per customer."""
     # TODO (TP3): Replace print with logger.info, add try/except + logger.error + raise
-    print("  💰 Gold: customer_ltv")
+    logger.info("  💰 Gold: customer_ltv")
 
     # TODO: Create the customer_ltv table
     # Join fct_orders with dim_users
     # Group by customer, compute the aggregates listed in the docstring
     # Hint: MIN/MAX for dates, EXTRACT(DAY FROM ...) for tenure
+    try :
+        query = f"""
+            SELECT
+                u.user_id,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.loyalty_tier,
+                COUNT(o.order_id) AS total_orders,
+                ROUND(CAST(SUM(o.total_usd) AS numeric), 2) AS total_spent,
+                ROUND(CAST(AVG(o.total_usd) AS numeric), 2) AS avg_order_value,
+                MIN(o.order_date) AS first_order_date,
+                MAX(o.order_date) AS last_order_date,
+                EXTRACT(DAY FROM MAX(o.order_date) - MIN(o.order_date))::int AS days_as_customer
+            FROM {SILVER_SCHEMA}.dim_users u
+            INNER JOIN {SILVER_SCHEMA}.fct_orders o ON u.user_id = o.user_id
+            WHERE o.status NOT IN ('cancelled', 'chargeback')
+            GROUP BY u.user_id, u.email, u.first_name, u.last_name, u.loyalty_tier
+            HAVING COUNT(o.order_id) > 0
+            ORDER BY total_spent DESC
+        """
+        df = pd.read_sql(query, get_engine())
+        _create_gold_table(df, "customer_ltv")
 
-    query = f"""
-        SELECT
-            u.user_id,
-            u.email,
-            u.first_name,
-            u.last_name,
-            u.loyalty_tier,
-            COUNT(o.order_id) AS total_orders,
-            ROUND(CAST(SUM(o.total_usd) AS numeric), 2) AS total_spent,
-            ROUND(CAST(AVG(o.total_usd) AS numeric), 2) AS avg_order_value,
-            MIN(o.order_date) AS first_order_date,
-            MAX(o.order_date) AS last_order_date,
-            EXTRACT(DAY FROM MAX(o.order_date) - MIN(o.order_date))::int AS days_as_customer
-        FROM {SILVER_SCHEMA}.dim_users u
-        INNER JOIN {SILVER_SCHEMA}.fct_orders o ON u.user_id = o.user_id
-        WHERE o.status NOT IN ('cancelled', 'chargeback')
-        GROUP BY u.user_id, u.email, u.first_name, u.last_name, u.loyalty_tier
-        HAVING COUNT(o.order_id) > 0
-        ORDER BY total_spent DESC
-    """
-    df = pd.read_sql(query, get_engine())
-    _create_gold_table(df, "customer_ltv")
+    except Exception as e:
+        logger.error(f"Failed to transform create_customer_ltv: {e}")
+        raise e
 
 
 def create_gold_layer():
@@ -150,7 +163,7 @@ def create_gold_layer():
     create_product_performance()
     create_customer_ltv()
 
-    print(f"\n  ✅ Gold layer created in {GOLD_SCHEMA}")
+    logger.info(f"\n  ✅ Gold layer created in {GOLD_SCHEMA}")
 
 
 if __name__ == "__main__":
