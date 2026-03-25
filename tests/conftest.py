@@ -81,3 +81,20 @@ def sample_order_line_items():
         "_internal_batch_code": ["BATCH-A", "BATCH-B", "BATCH-A", None],
         "_pick_slot": ["A12", "B04", "A15", "C01"]
     })
+    
+    
+def sample_reviews():
+    """Fake reviews DataFrame mimicking Bronze data."""
+    return pd.DataFrame({
+        "review_id": [1001, 1002, 1003, 1004],
+        "product_id": [501, 502, 501, 503],
+        "user_id": [1, 2, 3, 1],
+        "rating": [5, 4, 1, 6],
+        "title": ["Perfect fit!", "Good but tight", "Terrible experience", "CHEAP SNEAKERS HERE"],
+        "body": ["Love the Chicago colorway, highly recommend.", None, "Box was completely crushed.", "Click my link to buy cheap!"], # ⚠️ Un None pour tester le body NULL
+        "verified_purchase": [True, True, False, False],
+        "moderation_status": ["approved", "approved", "pending", "rejected"],
+        "helpful_votes": [15, 2, 0, 0],
+        "_sentiment_raw": [0.95, 0.60, -0.85, 0.00],
+        "_toxicity_score": [0.01, 0.05, 0.30, 0.99]
+    })

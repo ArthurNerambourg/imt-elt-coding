@@ -19,6 +19,7 @@ from src.extract import (
     extract_products,
     extract_users,
     extract_orders,
+    extract_order_line_items,
 )
 
 
@@ -75,3 +76,16 @@ class TestExtractOrders:
         rows, columns = result.shape
         assert rows == 3
         mock_load.assert_called_once()
+
+class TestExtractOrderLineItems:
+    """Tests for extract_order_line_items()."""
+
+    @patch("src.extract._load_to_bronze")
+    @patch("src.extract._read_csv_from_s3")
+    def test_extracts_and_loads(self, mock_read_csv, mock_load, sample_order_line_items):
+        mock_read_csv.return_value = sample_order_line_items
+        result = extract_order_line_items()
+        rows, columns = result.shape
+        assert rows == 4
+        mock_load.assert_called_once()
+        
