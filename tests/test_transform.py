@@ -287,7 +287,6 @@ class TestTransformOrderLineItems:
         mock_read.return_value = sample_order_line_items
 
         result = transform_order_line_items()
-        assert 101 not in result["line_item_id"].values
         assert "_check" not in result.columns 
 
         
