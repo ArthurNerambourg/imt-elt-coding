@@ -1,6 +1,10 @@
 # KICKZ EMPIRE — ELT Pipeline
 
-ELT (Extract, Load, Transform) pipeline for the **KICKZ EMPIRE** e-commerce website, built as part of the IMT Data Engineering course.
+ELT (Extract, Load, Transform) pipeline for the **KICKZ EMPIRE** e-commerce website, built as part of the IMT Data Engineering course. Our goal as data scientists is to provide the e-commerce team with clear, clean data to answer the following questions: 
+
+What is our daily revenue?
+Which products sell best?
+Who are our best customers?
 
 ## 🏗️ Architecture
 
@@ -73,17 +77,7 @@ python pipeline.py
 - **PostgreSQL** (AWS RDS) : Database
 - **pytest** : Testing (TP2)
 
-Description du projet : 
 
-Les données utilisées proviennent de KICKZ EMPIRE un site de commerce électronique spécialisé dans les baskets et les vêtements streetwear. Notre but en tant que Data scientits est de mettre à disposition de l'équipe e-commerce des données claires et propres pour réépondre aux questions suivantes : 
-
-Quel est notre chiffre d'affaires quotidien ?
-Quels sont les produits qui se vendent le mieux ?
-Qui sont nos meilleurs clients ?
-
-Pour cela nous avons mis en place un ELT. 
-
-Schéma architectural (Bronze → Argent → Or)
 Instructions d'installation (étape par étape)
 Comment exécuter (pipeline complet + étapes individuelles)
 
@@ -91,7 +85,7 @@ Test de l'ELT :
 Pour tester le fonctionnement de l'ELT 
 
 
-Membres de l'équipe : 
+## Team members 
 LACHGER Soufiane
 MARTIN Sacha 
 NERAMBOURG Arthur
