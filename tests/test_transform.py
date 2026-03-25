@@ -261,27 +261,27 @@ class TestTransformOrderLineItems:
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
-    def test_removes_pii_columns(self, mock_read, mock_load, sample_orders_line_items):
+    def test_removes_pii_columns(self, mock_read, mock_load, sample_order_line_items):
         # TODO: Test that internal columns (_hashed_password, _last_ip, _device_fingerprint)
         # are removed from the result
-        mock_read.return_value = sample_orders_line_items
+        mock_read.return_value = sample_order_line_items
         result = transform_order_line_items()
         internal_columns = [col for col in result.columns if col.startswith('_')]
         assert len(internal_columns) == 0
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
-    def test_invalid_quantity(self, mock_read, mock_load, sample_orders_line_items):
-        mock_read.return_value = sample_orders_line_items
+    def test_invalid_quantity(self, mock_read, mock_load, sample_order_line_items):
+        mock_read.return_value = sample_order_line_items
         result = transform_order_line_items()
         invalid_qty = result[result["quantity"] <= 0] 
         assert len(invalid_qty) == 0
 
     @patch("src.transform._load_to_silver")
     @patch("src.transform._read_bronze")
-    def test_verif_multiplication(self, mock_read, mock_load, sample_orders_line_items):
-        sample_orders_line_items.loc[0, "line_total_usd"] = 1000 
-        mock_read.return_value = sample_orders_line_items
+    def test_verif_multiplication(self, mock_read, mock_load, sample_order_line_items):
+        sample_order_line_items.loc[0, "line_total_usd"] = 1000 
+        mock_read.return_value = sample_order_line_items
 
         result = transform_order_line_items()
         assert 101 not in result["line_item_id"].values
